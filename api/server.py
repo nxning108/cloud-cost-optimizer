@@ -1,0 +1,405 @@
+#!/usr/bin/env python3
+"""Cloud Cost Optimizer API — FastAPI server for automated cloud cost analysis.
+
+Features:
+- User authentication (login/register with session tokens)
+- AWS CUR upload & analysis
+- AWS CLI direct billing scan
+- Multi-user support with isolated analysis results
+"""
+
+import hashlib
+import hmac
+import json
+import secrets
+import sys
+import tempfile
+import time
+from dataclasses import asdict
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "cli"))
+from optimizer import CostAnalyzer
+
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+
+app = FastAPI(title="Cloud Cost Optimizer API", version="1.0.0")
+app.add_middleware(CORSMiddleware, allow_origins=["*"])
+
+# ── User Authentication ──────────────────────────────────────────────
+
+# In-memory user store (MVP — use database for production)
+USERS_DB: dict = {}  # username -> {password_hash, salt, created}
+TOKENS_DB: dict = {}  # token -> {username, created, user_id}
+USER_ANALYSIS: dict = {}  # user_id -> list of analysis results
+NEXT_USER_ID = 1
+
+
+def _hash_password(password: str, salt: str) -> str:
+    """Simple SHA256 salted hash (MVP only — use bcrypt for production)"""
+    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+
+
+def create_user(username: str, password: str) -> dict:
+    """Create a new user account."""
+    if username in USERS_DB:
+        raise ValueError("Username already exists")
+    salt = secrets.token_hex(16)
+    USERS_DB[username] = {
+        "password_hash": _hash_password(password, salt),
+        "salt": salt,
+        "created": datetime.now().isoformat(),
+    }
+    global NEXT_USER_ID
+    user_id = NEXT_USER_ID
+    NEXT_USER_ID += 1
+    USER_ANALYSIS[user_id] = []
+    return {"user_id": user_id, "username": username}
+
+
+def authenticate_user(username: str, password: str) -> str:
+    """Authenticate user and return session token."""
+    if username not in USERS_DB:
+        return None
+    user = USERS_DB[username]
+    if _hash_password(password, user["salt"]) != user["password_hash"]:
+        return None
+    token = secrets.token_urlsafe(32)
+    TOKENS_DB[token] = {
+        "username": username,
+        "created": time.time(),
+        "user_id": get_user_id(username),
+    }
+    return token
+
+
+def get_user_id(username: str) -> int:
+    """Get user_id from username."""
+    for token, info in TOKENS_DB.items():
+        if info["username"] == username:
+            return info["user_id"]
+    return 1
+
+
+def get_user_by_token(token: Optional[str] = None) -> dict:
+    """Validate token and return user info."""
+    if not token or token not in TOKENS_DB:
+        raise HTTPException(status_code=401, detail="Invalid or missing token")
+    return TOKENS_DB[token]
+
+
+def require_auth(authorization: Optional[str] = Header(None)) -> dict:
+    """Dependency: require valid auth token."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    return get_user_by_token(token)
+
+
+# ── Create default admin on startup ──────────────────────────────────
+
+try:
+    create_user("admin", "admin123")
+except ValueError:
+    pass  # Already exists
+
+
+# ── Public Endpoints (no auth required) ──────────────────────────────
+
+analysis_results: list[dict] = []  # Legacy: kept for backward compat
+
+
+@app.get("/", response_class=HTMLResponse)
+async def dashboard():
+    return _DASHBOARD_HTML
+
+
+@app.get("/api/health")
+async def health():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
+@app.post("/api/register")
+async def register(username: str, password: str):
+    """Register a new user."""
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="Username too short (min 3 chars)")
+    if len(password) < 4:
+        raise HTTPException(status_code=400, detail="Password too short (min 4 chars)")
+    try:
+        result = create_user(username, password)
+        return {"message": "User created", **result}
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@app.post("/api/login")
+async def login(username: str, password: str):
+    """Login and get session token."""
+    token = authenticate_user(username, password)
+    if not token:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    user = TOKENS_DB[token]
+    return {
+        "token": token,
+        "username": user["username"],
+        "user_id": user["user_id"],
+        "message": "Login successful. Use this token in Authorization: Bearer <token>",
+    }
+
+
+# ── Protected Endpoints (auth required) ──────────────────────────────
+
+
+@app.post("/api/analyze")
+async def analyze(file: UploadFile = File(...), user: dict = Depends(require_auth)):
+    try:
+        contents = await file.read()
+        analyzer = CostAnalyzer()
+
+        if file.filename.endswith('.gz'):
+            import gzip
+            text = gzip.decompress(contents).decode('utf-8')
+        else:
+            text = contents.decode('utf-8')
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+            f.write(text)
+            temp_path = f.name
+
+        resources = analyzer.parse_aws_cur(temp_path)
+        Path(temp_path).unlink()
+
+        recs = analyzer.generate_recommendations()
+        idle = [r for r in resources if r.is_idle]
+        total_savings = sum(r.estimated_savings_monthly for r in recs)
+
+        result = {
+            "resources_analyzed": len(resources),
+            "idle_resources": len(idle),
+            "recommendations": [asdict(r) for r in recs],
+            "total_savings": total_savings,
+            "generated": datetime.now().isoformat(),
+        }
+
+        USER_ANALYSIS[user["user_id"]].append(result)
+        return result
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/recommendations")
+async def get_recommendations(user: dict = Depends(require_auth)):
+    analyses = USER_ANALYSIS.get(user["user_id"], [])
+    if not analyses:
+        return {"message": "No analyses run yet. POST /api/analyze first."}
+    return analyses[-1]
+
+
+@app.get("/api/report")
+async def get_report(format: str = "markdown", user: dict = Depends(require_auth)):
+    analyses = USER_ANALYSIS.get(user["user_id"], [])
+    if not analyses:
+        return {"message": "No analyses run yet."}
+    result = analyses[-1]
+    if format == "json":
+        return JSONResponse(content=result)
+    else:
+        lines = [
+            "# Cloud Cost Optimization Report",
+            f"**Generated**: {result['generated']}",
+            f"**Resources**: {result['resources_analyzed']}",
+            f"**Idle**: {result['idle_resources']}",
+            "",
+            f"## Total Potential Savings: ${result['total_savings']:,.2f}/month",
+            "",
+        ]
+        for r in result['recommendations'][:20]:
+            lines.append(
+                f"- [{r['confidence'].upper()}] {r['resource_type']} {r['resource_id']}: "
+                f"{r['action']} -> ${r['estimated_savings_monthly']:,.2f}/mo"
+            )
+        return HTMLResponse(content="<br>".join(lines))
+
+
+@app.post("/api/aws-scan")
+async def aws_scan(
+    profile: Optional[str] = None,
+    region: str = "us-east-1",
+    user: dict = Depends(require_auth)
+):
+    """Scan AWS directly for idle resources and cost optimization."""
+    try:
+        from cli.aws_cli import AWSConnector
+
+        conn = AWSConnector(profile=profile, region=region)
+        idle = conn.full_scan()
+
+        # Convert to recommendation format
+        recs = []
+        for r in idle:
+            recs.append({
+                "resource_id": r.resource_id,
+                "resource_type": r.resource_type,
+                "action": "terminate" if r.resource_type in ("EC2", "EBS") else "review",
+                "estimated_savings_monthly": r.cost_30d,
+                "confidence": "high" if r.is_idle else "medium",
+                "description": r.idle_reason,
+                "implementation_steps": [],
+            })
+
+        result = {
+            "scan_type": "aws_direct",
+            "profile": profile or "default",
+            "region": region,
+            "resources_scanned": len(idle),
+            "idle_resources": len([r for r in idle if r.is_idle]),
+            "recommendations": recs,
+            "total_savings": sum(r.cost_30d for r in idle),
+            "generated": datetime.now().isoformat(),
+        }
+
+        USER_ANALYSIS[user["user_id"]].append(result)
+        return result
+
+    except ImportError:
+        raise HTTPException(status_code=500, detail="boto3 not installed. Run: pip install boto3")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/user")
+async def get_user_info(user: dict = Depends(require_auth)):
+    """Get current user info and analysis history."""
+    analyses = USER_ANALYSIS.get(user["user_id"], [])
+    return {
+        "username": user["username"],
+        "user_id": user["user_id"],
+        "analyses_count": len(analyses),
+        "last_analysis": analyses[-1]["generated"] if analyses else None,
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8765)
+
+
+_DASHBOARD_HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Cloud Cost Optimizer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5}
+.hdr{background:linear-gradient(135deg,#1a73e8,#0d47a1);color:#fff;padding:20px 30px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.hdr h1{font-size:1.5em;margin-bottom:4px}.hdr p{opacity:.8;font-size:.9em}
+.cnt{max-width:1000px;margin:20px auto;padding:0 20px}
+.card{background:#fff;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.card h2{font-size:1.2em;margin-bottom:16px;color:#333}
+.ua{border:2px dashed #ccc;border-radius:8px;padding:40px;text-align:center;cursor:pointer;transition:all .2s}
+.ua:hover{border-color:#1a73e8;background:#f8f9ff}.ua.dragover{border-color:#1a73e8;background:#e8f0fe}
+.ua input{display:none}.ua .ico{font-size:3em;margin-bottom:10px}
+.btn{background:#1a73e8;color:#fff;padding:10px 24px;border:none;border-radius:6px;cursor:pointer;font-size:1em;transition:background .2s}
+.btn:hover{background:#1557b0}.btn:disabled{background:#ccc;cursor:not-allowed}
+.btn2{background:#34a853}.btn2:hover{background:#2d8f47}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.mc{background:#f8f9fa;padding:20px;border-radius:8px;text-align:center}
+.mv{font-size:2em;font-weight:700;color:#1a73e8}.ml{font-size:.85em;color:#666;margin-top:4px}
+.mv.sv{color:#34a853}.mv.wn{color:#f9ab00}.mv.dn{color:#ea4335}
+table{width:100%;border-collapse:collapse;margin-top:16px}
+th{background:#f8f9fa;padding:12px;text-align:left;font-size:.85em;color:#666;border-bottom:2px solid #e0e0e0}
+td{padding:12px;border-bottom:1px solid #f0f0f0}tr:hover{background:#f8f9ff}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.75em;font-weight:600}
+.bh{background:#fce8e6;color:#c5221d}.bm{background:#fef7e0;color:#ea8600}.bl{background:#e6f4ea;color:#137333}
+.loading{text-align:center;padding:40px;color:#666}
+.spinner{border:3px solid #f3f3f3;border-top:3px solid #1a73e8;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin:0 auto 10px}
+@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.error{background:#fce8e6;color:#c5221d;padding:12px;border-radius:8px;margin-top:10px}
+.success{background:#e6f4ea;color:#137333;padding:12px;border-radius:8px;margin-top:10px}
+.actions{display:flex;gap:10px;margin-top:16px}.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="hdr"><h1>Cloud Cost Optimizer</h1><p>Upload your AWS CUR to identify waste and optimize costs</p></div>
+<div class="cnt">
+<div class="card">
+<h2>Upload AWS CUR File</h2>
+<div class="ua" id="ua" onclick="document.getElementById('f').click()">
+<div class="ico">&#128230;</div><p>Drag & drop CSV here, or click to browse</p>
+<p style="font-size:.85em;color:#999;margin-top:8px">Supports .csv and .csv.gz</p>
+<input type="file" id="f" accept=".csv,.csv.gz">
+</div>
+<div id="fn" style="margin-top:10px;color:#666"></div>
+<div class="actions">
+<button class="btn" id="ab" onclick="run()" disabled>Analyze Costs</button>
+<button class="btn btn2 hidden" id="db" onclick="dl()">Download Report</button>
+</div>
+<div id="msg"></div>
+</div>
+<div id="res" class="hidden">
+<div class="metrics" id="mt"></div>
+<div class="card"><h2>Optimization Recommendations</h2><div id="rc"></div></div>
+</div>
+<div class="card">
+<h2>How It Works</h2>
+<ol style="padding-left:20px;line-height:1.8">
+<li>Export AWS Cost & Usage Report from Billing Console</li>
+<li>Upload the CSV file above</li>
+<li>Get instant analysis of idle resources and cost optimization recommendations</li>
+<li>Follow actionable steps to reduce cloud costs</li>
+</ol>
+</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const f=$('f'),ab=$('ab'),ua=$('ua'),fn=$('fn'),msg=$('msg'),res=$('res');
+f.addEventListener('change',()=>{if(f.files.length){ab.disabled=false;fn.textContent='Selected: '+f.files[0].name}});
+ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('dragover')});
+ua.addEventListener('dragleave',()=>ua.classList.remove('dragover'));
+ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('dragover');if(e.dataTransfer.files.length){f.files=e.dataTransfer.files;ab.disabled=false;fn.textContent='Selected: '+e.dataTransfer.files[0].name}});
+async function run(){
+if(!f.files[0])return;
+ab.disabled=true;ab.textContent='Analyzing...';
+msg.className='loading';msg.innerHTML='<div class="spinner"></div><p>Processing...</p>';
+res.classList.add('hidden');$('db').classList.add('hidden');
+const fd=new FormData();fd.append('file',f.files[0]);
+try{
+const r=await fetch('/api/analyze',{method:'POST',body:fd});
+const d=await r.json();
+if(r.ok){show('Analysis complete! '+(d.recommendations.length||0)+' opportunities found.','success');showRes(d);$('db').classList.remove('hidden')}
+else show('Error: '+(d.error||'Analysis failed'),'error');
+}catch(e){show('Network error: '+e.message,'error')}
+ab.disabled=false;ab.textContent='Analyze Costs';
+}
+function show(t,c){msg.className=c;msg.textContent=t}
+function showRes(d){
+res.classList.remove('hidden');
+$('mt').innerHTML=`<div class="mc"><div class="mv">${d.resources_analyzed}</div><div class="ml">Resources</div></div>
+<div class="mc"><div class="mv wn">${d.idle_resources}</div><div class="ml">Idle</div></div>
+<div class="mc"><div class="mv sv">${d.recommendations.length}</div><div class="ml">Recommendations</div></div>
+<div class="mc"><div class="mv sv">$${d.total_savings.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="ml">Monthly Savings</div></div>`;
+const rc=$('rc');
+if(!d.recommendations.length){rc.innerHTML='<p style="color:#666">No recommendations. Your resources look optimized!</p>';return}
+let h='<table><tr><th>Resource</th><th>Type</th><th>Action</th><th>Monthly Savings</th><th>Confidence</th></tr>';
+for(const r of d.recommendations.slice(0,20)){
+const bc=r.confidence==='high'?'bh':r.confidence==='medium'?'bm':'bl';
+h+=`<tr><td class="rid">${r.resource_id}</td><td>${r.resource_type}</td><td>${r.action}</td><td>$${r.estimated_savings_monthly.toLocaleString(undefined,{minimumFractionDigits:2})}</td><td><span class="badge ${bc}">${r.confidence}</span></td></tr>`;
+}
+h+='</table>';rc.innerHTML=h;
+}
+function dl(){
+const d=$('res').classList.contains('hidden');
+if(d){show('No analysis to download','error');return}
+window.location.href='/api/report?format=markdown';
+}
+<\/script>
+</body></html>"""
