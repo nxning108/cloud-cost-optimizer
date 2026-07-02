@@ -49,14 +49,15 @@ def create_user(username: str, password: str) -> dict:
     if username in USERS_DB:
         raise ValueError("Username already exists")
     salt = secrets.token_hex(16)
+    global NEXT_USER_ID
+    user_id = NEXT_USER_ID
+    NEXT_USER_ID += 1
     USERS_DB[username] = {
         "password_hash": _hash_password(password, salt),
         "salt": salt,
         "created": datetime.now().isoformat(),
+        "user_id": user_id,
     }
-    global NEXT_USER_ID
-    user_id = NEXT_USER_ID
-    NEXT_USER_ID += 1
     USER_ANALYSIS[user_id] = []
     return {"user_id": user_id, "username": username}
 
@@ -69,19 +70,22 @@ def authenticate_user(username: str, password: str) -> str:
     if _hash_password(password, user["salt"]) != user["password_hash"]:
         return None
     token = secrets.token_urlsafe(32)
+    user_id = get_user_id(username)
+    # Ensure USER_ANALYSIS has entry for this user
+    if user_id not in USER_ANALYSIS:
+        USER_ANALYSIS[user_id] = []
     TOKENS_DB[token] = {
         "username": username,
         "created": time.time(),
-        "user_id": get_user_id(username),
+        "user_id": user_id,
     }
     return token
 
 
 def get_user_id(username: str) -> int:
     """Get user_id from username."""
-    for token, info in TOKENS_DB.items():
-        if info["username"] == username:
-            return info["user_id"]
+    if username in USERS_DB:
+        return USERS_DB[username].get("user_id", 1)
     return 1
 
 
@@ -326,6 +330,20 @@ td{padding:12px;border-bottom:1px solid #f0f0f0}tr:hover{background:#f8f9ff}
 .error{background:#fce8e6;color:#c5221d;padding:12px;border-radius:8px;margin-top:10px}
 .success{background:#e6f4ea;color:#137333;padding:12px;border-radius:8px;margin-top:10px}
 .actions{display:flex;gap:10px;margin-top:16px}.hidden{display:none}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:16px}
+.p-tier{text-align:center;padding:28px 20px;border-radius:12px;border:2px solid #e0e0e0;background:#fff;transition:all .2s;position:relative}
+.p-tier:hover{border-color:#1a73e8;box-shadow:0 4px 12px rgba(26,115,232,.15)}
+.p-tier.featured{border-color:#1a73e8;background:linear-gradient(180deg,#f8f9ff,#fff)}
+.p-tier.featured:hover{box-shadow:0 4px 20px rgba(26,115,232,.25)}
+.p-tier h3{font-size:1.1em;color:#333;margin-bottom:8px}
+.p-price{font-size:2.2em;font-weight:700;color:#1a73e8;margin:12px 0 4px}
+.p-price span{font-size:.45em;color:#666;font-weight:400}
+.p-features{list-style:none;padding:0;margin:16px 0 0;text-align:left}
+.p-features li{padding:6px 0;font-size:.9em;color:#555;border-bottom:1px solid #f5f5f5}
+.p-features li:last-child{border-bottom:none}
+.p-features li::before{content:"&#10003; ";color:#34a853;font-weight:700}
+.p-badge{position:absolute;top:-12px;right:16px;background:#f9ab00;color:#fff;padding:3px 12px;border-radius:12px;font-size:.72em;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.p-badge.active{background:#34a853}
 </style>
 </head>
 <body>
@@ -348,6 +366,42 @@ td{padding:12px;border-bottom:1px solid #f0f0f0}tr:hover{background:#f8f9ff}
 <div id="res" class="hidden">
 <div class="metrics" id="mt"></div>
 <div class="card"><h2>Optimization Recommendations</h2><div id="rc"></div></div>
+</div>
+<div class="card">
+<h2>Pricing</h2>
+<div class="pricing-grid">
+<div class="p-tier">
+<span class="p-badge active">Available</span>
+<h3>Free</h3>
+<div class="p-price">$0<span>/mo</span></div>
+<ul class="p-features">
+<li>1 user</li>
+<li>3 analyses per month</li>
+<li>CSV upload</li>
+</ul>
+</div>
+<div class="p-tier featured">
+<span class="p-badge">Coming Soon</span>
+<h3>Pro</h3>
+<div class="p-price">$9<span>/mo</span></div>
+<ul class="p-features">
+<li>5 users</li>
+<li>Unlimited analyses</li>
+<li>AWS direct scan</li>
+</ul>
+</div>
+<div class="p-tier">
+<span class="p-badge">Coming Soon</span>
+<h3>Team</h3>
+<div class="p-price">$29<span>/mo</span></div>
+<ul class="p-features">
+<li>Unlimited users</li>
+<li>Multi-region</li>
+<li>Multi-account</li>
+<li>API access</li>
+</ul>
+</div>
+</div>
 </div>
 <div class="card">
 <h2>How It Works</h2>
