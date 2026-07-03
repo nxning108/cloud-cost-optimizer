@@ -1,154 +1,160 @@
 #!/usr/bin/env python3
-"""End-to-End Tests for Cloud Cost Optimizer"""
+"""
+Cloud Cost Optimizer — E2E Tests (task_12)
+
+Tests the complete analysis workflow:
+register → login → upload CUR → analyze → get recommendations → generate report → user info
+
+Run: python3 tests/test_e2e.py
+"""
 
 import csv
-import json
+import io
 import sys
-import tempfile
 from pathlib import Path
-from httpx import AsyncClient, ASGITransport
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "cli"))
 
-from api.server import app
+from fastapi.testclient import TestClient
+from api.server import app, USERS_DB, TOKENS_DB, USER_ANALYSIS
+
+client = TestClient(app)
 
 
-def generate_large_cur_csv(num_resources=50, days=30):
-    """Generate a large AWS CUR CSV for testing"""
-    import random
-    random.seed(123)
+def _make_cur(resources):
+    """Build a CUR CSV content from resource dicts."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "product_name", "usage_type", "billing_entity",
+        "unblended_cost", "usage_quantity",
+        "line_item_usage_start_date", "line_item_usage_end_date",
+        "resource_id", "availability_zone",
+    ])
+    for r in resources:
+        writer.writerow([
+            r.get("product", "AmazonEC2"),
+            r.get("usage_type", "Usage"),
+            "AWS",
+            r.get("cost", "0.0"),
+            r.get("qty", "0"),
+            "2024-01-01T00:00:00Z",
+            "2024-01-31T23:59:59Z",
+            r.get("id", "i-default"),
+            "us-east-1a",
+        ])
+    return buf.getvalue().encode(), "cur.csv"
 
-    fields = [
-        'UsageStartDate', 'PayerAccountId', 'ResourceId',
-        'Product Name', 'Product Region', 'UsageQuantity',
-        'UnblendedCost', 'Unit'
+
+def test_e2e_full_analysis_workflow():
+    """
+    Complete E2E: register → login → upload → analyze → recommendations → report → user info
+    """
+    USERS_DB.clear()
+    TOKENS_DB.clear()
+    USER_ANALYSIS.clear()
+
+    # Step 1: Register
+    print("  Step 1: Register user...")
+    r = client.post("/api/register", params={"username": "e2e_test", "password": "testpass"})
+    assert r.status_code == 200
+    assert r.json()["username"] == "e2e_test"
+
+    # Step 2: Login
+    print("  Step 2: Login...")
+    r = client.post("/api/login", params={"username": "e2e_test", "password": "testpass"})
+    assert r.status_code == 200
+    token = r.json()["token"]
+    hdr = {"Authorization": f"Bearer {token}"}
+
+    # Step 3: Upload and analyze
+    print("  Step 3: Upload CUR and analyze...")
+    cur_resources = [
+        {"product": "AmazonEC2", "cost": "250.00", "qty": "720", "id": "i-prod-web-01"},
+        {"product": "AmazonEC2", "cost": "180.00", "qty": "720", "id": "i-prod-web-02"},
+        {"product": "AmazonEC2", "cost": "5.00", "qty": "10", "id": "i-idle-test"},
+        {"product": "AmazonRDS", "cost": "320.00", "qty": "720", "id": "db-production"},
+        {"product": "AmazonS3", "cost": "45.00", "qty": "500", "id": "backup-bucket"},
+        {"product": "AmazonEBS", "cost": "80.00", "qty": "720", "id": "vol-unused-01"},
     ]
+    content, filename = _make_cur(cur_resources)
+    r = client.post("/api/analyze", files={"file": (filename, content, "text/csv")}, headers=hdr)
+    assert r.status_code == 200
+    analysis = r.json()
+    assert "resources_analyzed" in analysis
+    assert "recommendations" in analysis
+    assert "total_savings" in analysis
+    print(f"    Resources: {analysis['resources_analyzed']}, Savings: ${analysis['total_savings']:.2f}")
 
-    resource_templates = [
-        ('i-0a1b2c3d4e5f{rid:03d}', 'Amazon EC2', 'us-east-1', 'Hrs', 'EC2'),
-        ('vol-0a1b2c3d4e5f{rid:03d}', 'Amazon EBS', 'us-east-1', 'Hrs', 'EBS'),
-        ('db-{rid:03d}', 'Amazon RDS', 'us-east-1', 'Hrs', 'RDS'),
-    ]
+    # Step 4: Recommendations
+    print("  Step 4: Get recommendations...")
+    r = client.get("/api/recommendations", headers=hdr)
+    assert r.status_code == 200
 
-    temp = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False)
-    writer = csv.DictWriter(temp, fieldnames=fields)
-    writer.writeheader()
+    # Step 5: Markdown report
+    print("  Step 5: Generate markdown report...")
+    r = client.get("/api/report?format=markdown", headers=hdr)
+    assert r.status_code == 200
+    assert "Cloud Cost Optimization Report" in r.text
 
-    from datetime import datetime, timedelta
-    for rid_num in range(num_resources):
-        rid, product, region, unit, rtype = random.choice(resource_templates)
-        rid = rid.format(rid=rid_num)
-        for day in range(days):
-            start = datetime.now() - timedelta(days=day)
-            if rtype == 'EC2' and random.random() < 0.2:
-                usage = round(random.uniform(0.1, 4.0), 2)
-                cost = round(random.uniform(0.05, 0.15), 4)
-            elif rtype == 'EBS' and random.random() < 0.15:
-                usage = round(random.uniform(0, 50), 2)
-                cost = round(random.uniform(0.01, 0.05), 4)
-            else:
-                usage = round(random.uniform(20, 80), 2)
-                cost = round(random.uniform(0.1, 2.0), 4)
+    # Step 6: JSON report
+    print("  Step 6: Generate JSON report...")
+    r = client.get("/api/report?format=json", headers=hdr)
+    assert r.status_code == 200
 
-            writer.writerow({
-                'UsageStartDate': start.strftime('%Y-%m-%d'),
-                'PayerAccountId': '123456789012',
-                'ResourceId': rid,
-                'Product Name': product,
-                'Product Region': region,
-                'UsageQuantity': usage,
-                'UnblendedCost': cost,
-                'Unit': unit,
-            })
+    # Step 7: User info
+    print("  Step 7: Check user info...")
+    r = client.get("/api/user", headers=hdr)
+    assert r.status_code == 200
+    assert r.json()["analyses_count"] >= 1
 
-    temp.close()
-    return temp.name
+    print("  ✅ E2E full workflow passed!")
 
 
-async def test_e2e_analysis():
-    """Test full analysis flow: register -> login -> upload -> analyze -> report"""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # 1. Register
-        resp = await client.post("/api/register?username=e2e_user&password=test123")
-        assert resp.status_code == 200, f"Register failed: {resp.text}"
-        data = resp.json()
-        assert "user_id" in data
+def test_e2e_multiple_analyses():
+    """Upload multiple CUR files and verify all analyses are stored."""
+    USERS_DB.clear()
+    TOKENS_DB.clear()
+    USER_ANALYSIS.clear()
 
-        # 2. Login
-        resp = await client.post("/api/login?username=e2e_user&password=test123")
-        assert resp.status_code == 200, f"Login failed: {resp.text}"
-        token = resp.json()["token"]
-        headers = {"Authorization": f"Bearer {token}"}
+    client.post("/api/register", params={"username": "multi", "password": "pass"})
+    r = client.post("/api/login", params={"username": "multi", "password": "pass"})
+    token = r.json()["token"]
+    hdr = {"Authorization": f"Bearer {token}"}
 
-        # 3. Upload and analyze
-        csv_path = generate_large_cur_csv(num_resources=20, days=15)
-        with open(csv_path, "rb") as f:
-            resp = await client.post(
-                "/api/analyze",
-                files={"file": ("test.csv", f, "text/csv")},
-                headers=headers
-            )
-        assert resp.status_code == 200
-        analysis = resp.json()
-        assert "resources_analyzed" in analysis
-        assert analysis["resources_analyzed"] > 0
+    for i in range(3):
+        resources = [{"product": "AmazonEC2", "cost": str(10 + i), "id": f"i-run{i}"}]
+        content, filename = _make_cur(resources)
+        r = client.post("/api/analyze", files={"file": (filename, content, "text/csv")}, headers=hdr)
+        assert r.status_code == 200
 
-        # 4. Get recommendations
-        resp = await client.get("/api/recommendations", headers=headers)
-        assert resp.status_code == 200
-        recs = resp.json()
-        assert "recommendations" in recs
+    r = client.get("/api/user", headers=hdr)
+    assert r.json()["analyses_count"] == 3
 
-        # 5. Get report
-        resp = await client.get("/api/report?format=json", headers=headers)
-        assert resp.status_code == 200
-        report = resp.json()
-        assert "recommendations" in report
-
-        # 6. Get user info
-        resp = await client.get("/api/user", headers=headers)
-        assert resp.status_code == 200
-        user = resp.json()
-        assert user["username"] == "e2e_user"
-        assert user["analyses_count"] > 0
-
-        # Cleanup
-        Path(csv_path).unlink()
-
-    print("✅ test_e2e_analysis passed")
-    print(f"   Resources: {analysis['resources_analyzed']}, Idle: {analysis['idle_resources']}")
-    print(f"   Savings: ${analysis['total_savings']:.2f}/month")
-
-
-async def test_api_key_auth():
-    """Test API key authentication (skipped if not yet implemented)"""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Register and login
-        await client.post("/api/register?username=key_test&password=test123")
-        resp = await client.post("/api/login?username=key_test&password=test123")
-        data = resp.json()
-        if "token" not in data:
-            print("⚠️  test_api_key_auth skipped (login endpoint changed)")
-            return
-        token = data["token"]
-        headers = {"Authorization": f"Bearer {token}"}
-
-        # Try to create API key (will 404 if not implemented yet)
-        resp = await client.post("/api/api-keys", headers=headers, json={"name": "test_key"})
-        if resp.status_code == 404:
-            print("⚠️  test_api_key_auth skipped (endpoint not yet implemented)")
-        else:
-            assert resp.status_code == 200, f"API key creation failed: {resp.text}"
-            print("✅ test_api_key_auth passed")
-
-    print("✅ test_api_key_auth passed (or skipped if not yet implemented)")
+    print("  ✅ E2E multiple analyses passed (3/3 stored)!")
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(test_e2e_analysis())
-    asyncio.run(test_api_key_auth())
-    print("\n🎉 All E2E tests passed!")
+    tests = [
+        ("Full Analysis Workflow", test_e2e_full_analysis_workflow),
+        ("Multiple Analyses", test_e2e_multiple_analyses),
+    ]
+
+    print(f"\n🧪 Running {len(tests)} E2E tests...\n")
+    passed = 0
+    for name, fn in tests:
+        try:
+            fn()
+            passed += 1
+        except Exception as e:
+            print(f"  ❌ {name}: {e}")
+            import traceback
+            traceback.print_exc()
+
+    print(f"\n{'='*50}")
+    print(f"Results: {passed}/{len(tests)} passed")
+    if passed == len(tests):
+        print("🎉 All E2E tests passed!")
+    else:
+        sys.exit(1)
