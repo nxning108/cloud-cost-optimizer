@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Cost Optimizer — 比 CloudHealth 便宜 90% 的云成本优化工具</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --accent: #f59e0b;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --white: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            color: var(--text);
+            background: var(--bg);
+            line-height: 1.6;
+        }
+
+        /* ── Navigation ───────────────────────────── */
+        nav {
+            position: fixed; top: 0; width: 100%; z-index: 100;
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem; height: 64px; display: flex; align-items: center; justify-content: space-between;
+        }
+        nav .logo { font-weight: 800; font-size: 1.25rem; color: var(--primary); }
+        nav .logo span { color: var(--accent); }
+        nav .nav-links { display: flex; gap: 2rem; align-items: center; }
+        nav .nav-links a { text-decoration: none; color: var(--text-light); font-size: 0.9rem; font-weight: 500; }
+        nav .nav-links a:hover { color: var(--primary); }
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: 600;
+            text-decoration: none; font-size: 0.9rem; border: none; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        .btn-outline { border: 2px solid var(--primary); color: var(--primary); background: transparent; }
+        .btn-outline:hover { background: var(--primary); color: white; }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-accent:hover { background: #d97706; }
+
+        /* ── Hero ─────────────────────────────────── */
+        .hero {
+            padding: 8rem 2rem 4rem; text-align: center;
+            max-width: 900px; margin: 0 auto;
+            background: linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%);
+        }
+        .hero .badge {
+            display: inline-block; background: #dbeafe; color: var(--primary);
+            padding: 0.3rem 1rem; border-radius: 999px; font-size: 0.85rem;
+            font-weight: 600; margin-bottom: 1.5rem;
+        }
+        .hero h1 { font-size: 3.5rem; font-weight: 800; line-height: 1.15; margin-bottom: 1.5rem; }
+        .hero h1 span { color: var(--primary); }
+        .hero p { font-size: 1.25rem; color: var(--text-light); max-width: 640px; margin: 0 auto 2rem; }
+        .hero .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .hero .stats { display: flex; gap: 3rem; justify-content: center; margin-top: 3rem; }
+        .hero .stat { text-align: center; }
+        .hero .stat .num { font-size: 2rem; font-weight: 800; color: var(--primary); }
+        .hero .stat .label { font-size: 0.85rem; color: var(--text-light); }
+
+        /* ── Feature Comparison ───────────────────── */
+        .section { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
+        .section-title { text-align: center; margin-bottom: 3rem; }
+        .section-title h2 { font-size: 2.25rem; font-weight: 800; margin-bottom: 0.75rem; }
+        .section-title p { color: var(--text-light); font-size: 1.1rem; }
+
+        .comparison-table {
+            width: 100%; border-collapse: collapse;
+            background: white; border-radius: 16px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .comparison-table th, .comparison-table td {
+            padding: 1rem 1.25rem; text-align: center; border-bottom: 1px solid var(--border);
+        }
+        .comparison-table th {
+            background: #f1f5f9; font-weight: 700; font-size: 0.9rem;
+        }
+        .comparison-table th.highlight {
+            background: var(--primary); color: white;
+        }
+        .comparison-table td:first-child { text-align: left; font-weight: 500; }
+        .comparison-table tr:last-child td { border-bottom: none; }
+        .check { color: var(--success); font-size: 1.2rem; }
+        .cross { color: #cbd5e1; font-size: 1.2rem; }
+        .highlight-col { background: #eff6ff; }
+
+        /* ── Pricing ──────────────────────────────── */
+        .pricing-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem; max-width: 1000px; margin: 0 auto;
+        }
+        .pricing-card {
+            background: white; border-radius: 16px; padding: 2.5rem;
+            border: 2px solid var(--border); text-align: center;
+            transition: all 0.2s; position: relative;
+        }
+        .pricing-card.popular {
+            border-color: var(--primary);
+            box-shadow: 0 4px 24px rgba(37,99,235,0.15);
+        }
+        .pricing-card.popular .popular-badge {
+            position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+            background: var(--primary); color: white; padding: 0.25rem 1.25rem;
+            border-radius: 999px; font-size: 0.8rem; font-weight: 700;
+        }
+        .pricing-card h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .pricing-card .price { font-size: 3.5rem; font-weight: 800; margin: 1rem 0; }
+        .pricing-card .price span { font-size: 1rem; color: var(--text-light); font-weight: 400; }
+        .pricing-card .price-desc { color: var(--text-light); font-size: 0.9rem; margin-bottom: 2rem; }
+        .pricing-card ul { list-style: none; text-align: left; margin-bottom: 2rem; }
+        .pricing-card ul li {
+            padding: 0.5rem 0; font-size: 0.95rem; color: var(--text-light);
+            display: flex; align-items: center; gap: 0.75rem;
+        }
+        .pricing-card ul li::before { content: "✓"; color: var(--success); font-weight: 700; }
+        .pricing-card ul li.disabled { color: #cbd5e1; }
+        .pricing-card ul li.disabled::before { content: "—"; color: #cbd5e1; }
+
+        /* ── Features Grid ────────────────────────── */
+        .features-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        .feature-card {
+            background: white; border-radius: 12px; padding: 2rem;
+            border: 1px solid var(--border); transition: all 0.2s;
+        }
+        .feature-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-2px); }
+        .feature-icon { font-size: 2rem; margin-bottom: 1rem; }
+        .feature-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .feature-card p { color: var(--text-light); font-size: 0.9rem; }
+
+        /* ── CTA ──────────────────────────────────── */
+        .cta {
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+            color: white; text-align: center; padding: 5rem 2rem;
+        }
+        .cta h2 { font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; }
+        .cta p { font-size: 1.1rem; opacity: 0.9; margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+        .cta .btn { background: white; color: var(--primary); font-size: 1rem; padding: 0.8rem 2rem; }
+        .cta .btn:hover { background: #f1f5f9; }
+
+        /* ── Footer ───────────────────────────────── */
+        footer {
+            background: var(--text); color: #94a3b8; text-align: center;
+            padding: 2rem; font-size: 0.85rem;
+        }
+        footer a { color: #94a3b8; }
+
+        /* ── Responsive ───────────────────────────── */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.25rem; }
+            .hero .stats { gap: 1.5rem; }
+            .pricing-grid { grid-template-columns: 1fr; }
+            .comparison-table { font-size: 0.8rem; }
+            .comparison-table th, .comparison-table td { padding: 0.6rem; }
+            nav .nav-links { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Navigation ──────────────────────────────────────── -->
+<nav>
+    <div class="logo">Cloud<span>Cost</span> Optimizer</div>
+    <div class="nav-links">
+        <a href="#features">功能</a>
+        <a href="#compare">对比</a>
+        <a href="#pricing">定价</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/your-org/cloud-cost-optimizer" class="btn btn-primary" style="padding:0.4rem 1rem;">GitHub ★</a>
+    </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────── -->
+<section class="hero">
+    <div class="badge">🔥 开源 · 自托管 · 无抽成</div>
+    <h1>比 CloudHealth <span>便宜 90%</span><br>的云成本优化工具</h1>
+    <p>一键分析 AWS 账单，自动发现闲置资源、Rightsizing 机会、预留实例建议。<br>开源核心，零抽成，你的省钱完全归你。</p>
+    <div class="hero-actions">
+        <a href="#pricing" class="btn btn-primary" style="padding:0.8rem 2rem; font-size:1rem;">免费开始 →</a>
+        <a href="https://github.com/your-org/cloud-cost-optimizer" class="btn btn-outline" style="padding:0.8rem 2rem; font-size:1rem;">查看源码</a>
+    </div>
+    <div class="stats">
+        <div class="stat"><div class="num">90%</div><div class="label">比 CloudHealth 便宜</div></div>
+        <div class="stat"><div class="num">0%</div><div class="label">节省抽成（全归你）</div></div>
+        <div class="stat"><div class="num">5min</div><div class="label">首次分析时间</div></div>
+        <div class="stat"><div class="num">开源</div><div class="label">MIT 许可证</div></div>
+    </div>
+</section>
+
+<!-- ── Features ────────────────────────────────────────── -->
+<section class="section" id="features">
+    <div class="section-title">
+        <h2>核心功能</h2>
+        <p>专注一件事：帮你把云账单降到最低</p>
+    </div>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>账单智能分析</h3>
+            <p>上传 AWS CUR 文件或直连 AWS CLI，自动识别成本异常和优化机会。</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔍</div>
+            <h3>闲置资源检测</h3>
+            <p>自动扫描未挂载的 EBS 卷、孤立的 Elastic IP、未使用的快照等浪费资源。</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Rightsizing 建议</h3>
+            <p>基于实际 CPU/内存使用率，推荐最优实例类型，平均节省 30-50%。</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3>预留实例优化</h3>
+            <p>分析长期使用模式，智能推荐 RI/Savings Plan，最大化折扣。</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📈</div>
+            <h3>实时仪表盘</h3>
+            <p>Web 仪表盘实时展示成本趋势、优化建议和节省金额。</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔧</div>
+            <h3>CLI 工具</h3>
+            <p>命令行工具支持 CI/CD 集成，自动化定期扫描和报告生成。</p>
+        </div>
+    </div>
+</section>
+
+<!-- ── Comparison ──────────────────────────────────────── -->
+<section class="section" id="compare">
+    <div class="section-title">
+        <h2>为什么选我们？</h2>
+        <p>与主流云成本管理工具的功能对比</p>
+    </div>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th style="text-align:left; width:25%;">功能</th>
+                <th style="width:16%;">CloudHealth</th>
+                <th style="width:16%;">CloudCheckr</th>
+                <th style="width:16%;">Spot</th>
+                <th class="highlight" style="width:17%;">我们 ✨</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>月费</td>
+                <td>$100+</td>
+                <td>$250+</td>
+                <td>免费</td>
+                <td class="highlight-col"><strong>$0 - $9</strong></td>
+            </tr>
+            <tr>
+                <td>节省抽成</td>
+                <td>无</td>
+                <td>无</td>
+                <td>10-15%</td>
+                <td class="highlight-col"><strong>0%</strong></td>
+            </tr>
+            <tr>
+                <td>AWS 支持</td>
+                <td><span class="check">✓</span></td>
+                <td><span class="check">✓</span></td>
+                <td><span class="check">✓</span></td>
+                <td class="highlight-col"><span class="check">✓</span></td>
+            </tr>
+            <tr>
+                <td>多云支持</td>
+                <td><span class="check">✓</span></td>
+                <td><span class="check">✓</span></td>
+                <td><span class="cross">✗</span></td>
+                <td class="highlight-col"><span class="check">✓</span> (Roadmap)</td>
+            </tr>
+            <tr>
+                <td>开源</td>
+                <td><span class="cross">✗</span></td>
+                <td><span class="cross">✗</span></td>
+                <td><span class="cross">✗</span></td>
+                <td class="highlight-col"><span class="check">✓</span></td>
+            </tr>
+            <tr>
+                <td>自托管</td>
+                <td><span class="cross">✗</span></td>
+                <td><span class="cross">✗</span></td>
+                <td><span class="cross">✗</span></td>
+                <td class="highlight-col"><span class="check">✓</span></td>
+            </tr>
+            <tr>
+                <td>闲置资源检测</td>
+                <td><span class="check">✓</span></td>
+                <td><span class="check">✓</span></td>
+                <td><span class="check">✓</span></td>
+                <td class="highlight-col"><span class="check">✓</span></td>
+            </tr>
+            <tr>
+                <td>Rightsizing</td>
+                <td><span class="check">✓</span></td>
+                <td><span class="check">✓</span></td>
+                <td><span class="check">✓</span></td>
+                <td class="highlight-col"><span class="check">✓</span></td>
+            </tr>
+            <tr>
+                <td>CLI 工具</td>
+                <td><span class="cross">✗</span></td>
+                <td><span class="cross">✗</span></td>
+                <td><span class="cross">✗</span></td>
+                <td class="highlight-col"><span class="check">✓</span></td>
+            </tr>
+            <tr>
+                <td>API 访问</td>
+                <td><span class="check">✓</span> (Enterprise)</td>
+                <td><span class="check">✓</span> (Enterprise)</td>
+                <td><span class="cross">✗</span></td>
+                <td class="highlight-col"><span class="check">✓</span> (全版本)</td>
+            </tr>
+            <tr>
+                <td>设置时间</td>
+                <td>数天</td>
+                <td>数天</td>
+                <td>数小时</td>
+                <td class="highlight-col"><strong>5 分钟</strong></td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ── Pricing ──────────────────────────────────────────── -->
+<section class="section" id="pricing">
+    <div class="section-title">
+        <h2>简单透明的定价</h2>
+        <p>无隐藏费用，无节省抽成，免费开始</p>
+    </div>
+    <div class="pricing-grid">
+        <!-- Free -->
+        <div class="pricing-card">
+            <h3>Free</h3>
+            <div class="price">$0 <span>/月</span></div>
+            <p class="price-desc">个人开发者和初创团队</p>
+            <ul>
+                <li>1 个 AWS 账号</li>
+                <li>每月 3 次分析</li>
+                <li>闲置资源检测</li>
+                <li>基础 Rightsizing 建议</li>
+                <li>CLI 工具</li>
+                <li class="disabled">多用户协作</li>
+                <li class="disabled">API 访问</li>
+                <li class="disabled">预留实例优化</li>
+                <li class="disabled">优先支持</li>
+            </ul>
+            <a href="#" class="btn btn-outline" style="width:100%; justify-content:center;">免费开始</a>
+        </div>
+        <!-- Pro -->
+        <div class="pricing-card popular">
+            <div class="popular-badge">最受欢迎</div>
+            <h3>Pro</h3>
+            <div class="price">$9 <span>/月</span></div>
+            <p class="price-desc">中小团队和生产环境</p>
+            <ul>
+                <li>5 个 AWS 账号</li>
+                <li>无限分析</li>
+                <li>闲置资源检测 + 自动修复</li>
+                <li>高级 Rightsizing（含预测）</li>
+                <li>CLI + API 工具</li>
+                <li>多用户协作（3人）</li>
+                <li>预留实例优化</li>
+                <li>成本异常告警</li>
+                <li class="disabled">优先支持</li>
+            </ul>
+            <a href="#" class="btn btn-primary" style="width:100%; justify-content:center;">升级到 Pro</a>
+        </div>
+        <!-- Team -->
+        <div class="pricing-card">
+            <h3>Team</h3>
+            <div class="price">$29 <span>/月</span></div>
+            <p class="price-desc">企业和多云环境</p>
+            <ul>
+                <li>无限 AWS 账号</li>
+                <li>无限分析 + 实时扫描</li>
+                <li>全部 Pro 功能</li>
+                <li>多云支持（AWS + GCP + Azure）</li>
+                <li>无限制用户</li>
+                <li>自定义报告 & 导出</li>
+                <li>Webhook & Slack 集成</li>
+                <li>优先支持 (SLA)</li>
+            </ul>
+            <a href="#" class="btn btn-outline" style="width:100%; justify-content:center;">联系销售</a>
+        </div>
+    </div>
+</section>
+
+<!-- ── FAQ ─────────────────────────────────────────────── -->
+<section class="section" id="faq" style="background: white; border-radius: 16px;">
+    <div class="section-title">
+        <h2>常见问题</h2>
+    </div>
+    <div style="max-width: 700px; margin: 0 auto;">
+        <div style="border-bottom: 1px solid var(--border); padding: 1.25rem 0;">
+            <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Free 版有功能限制吗？</h3>
+            <p style="color: var(--text-light); font-size: 0.95rem;">Free 版包含所有核心分析功能，限制在于每月 3 次分析和 1 个 AWS 账号。对大多数个人开发者已足够。</p>
+        </div>
+        <div style="border-bottom: 1px solid var(--border); padding: 1.25rem 0;">
+            <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">你们的"无抽成"是什么意思？</h3>
+            <p style="color: var(--text-light); font-size: 0.95rem;">竞品如 Spot 会从你节省的金额中抽成 10-15%。我们完全不收抽成 — 你省了多少钱就全是你的。我们只收固定月费。</p>
+        </div>
+        <div style="border-bottom: 1px solid var(--border); padding: 1.25rem 0;">
+            <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">可以自托管吗？</h3>
+            <p style="color: var(--text-light); font-size: 0.95rem;">当然！核心引擎是开源的（MIT 许可证）。你可以完全自托管，不花一分钱。SaaS 版只是提供托管服务和额外功能。</p>
+        </div>
+        <div style="border-bottom: 1px solid var(--border); padding: 1.25rem 0;">
+            <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">我的 AWS 密钥安全吗？</h3>
+            <p style="color: var(--text-light); font-size: 0.95rem;">自托管版数据完全在你控制下。SaaS 版中，密钥经过 AES-256 加密存储，仅用于读取账单数据，不会执行任何操作。</p>
+        </div>
+        <div style="padding: 1.25rem 0;">
+            <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">多久能看到优化建议？</h3>
+            <p style="color: var(--text-light); font-size: 0.95rem;">首次扫描 5 分钟内完成。上传 CUR 文件或授权 AWS CLI 后，系统会立即分析并生成优化报告。</p>
+        </div>
+    </div>
+</section>
+
+<!-- ── CTA ─────────────────────────────────────────────── -->
+<section class="cta">
+    <h2>开始节省云成本</h2>
+    <p>5 分钟设置，首次分析立即获取优化建议。<br>免费开始，无需信用卡。</p>
+    <a href="#" class="btn">免费开始 →</a>
+    <p style="margin-top: 1.5rem; font-size: 0.85rem; opacity: 0.7;">或 <a href="https://github.com/your-org/cloud-cost-optimizer" style="color:white;">查看源码自托管</a></p>
+</section>
+
+<!-- ── Footer ──────────────────────────────────────────── -->
+<footer>
+    <p>© 2026 Cloud Cost Optimizer — 开源云成本优化工具 · <a href="https://github.com/your-org/cloud-cost-optimizer">GitHub</a></p>
+</footer>
+
+</body>
+</html>
