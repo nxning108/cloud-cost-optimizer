@@ -29,10 +29,10 @@
 - [ ] Usage statistics dashboard
 - [ ] Email notifications for savings alerts
 
-## v1.2
-- [ ] Azure billing CSV support
-- [ ] GCP BigQuery billing integration
-- [ ] Multi-cloud comparison
+## v1.2 (In Progress)
+- [x] Azure billing CSV support — `cli/azure_optimizer.py` (288 lines)
+- [x] GCP BigQuery billing integration — `cli/gcp_optimizer.py` (286 lines)
+- [ ] Multi-cloud comparison dashboard
 - [x] Cost trends visualization (canvas charts in dashboard)
 
 ## v2.0
