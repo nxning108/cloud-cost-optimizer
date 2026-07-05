@@ -4,9 +4,11 @@ Automated cloud cost analysis and optimization recommendations for AWS, Azure, a
 
 > 🚀 **v1.0** — CLI + API + Web UI with authentication, AWS direct billing scan, and 31 passing tests.
 
-[![Tests](https://github.com/youruser/cloud-cost-optimizer/actions/workflows/test.yml/badge.svg)](.github/workflows/test.yml)
+[![Tests](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/test.yml/badge.svg)](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/test.yml)
+[![Docker Build](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/docker-build.yml/badge.svg)](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/docker-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue)](https://python.org)
+[![GitHub tag](https://img.shields.io/github/v/release/nxning108/cloud-cost-optimizer)](https://github.com/nxning108/cloud-cost-optimizer/releases)
 
 ## Features
 
@@ -21,7 +23,7 @@ Automated cloud cost analysis and optimization recommendations for AWS, Azure, a
 
 ```bash
 # Install
-git clone https://github.com/youruser/cloud-cost-optimizer.git
+git clone https://github.com/nxning108/cloud-cost-optimizer.git
 cd cloud-cost-optimizer
 pip install -r requirements.txt
 
@@ -72,6 +74,24 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8765/api/report?format=m
 docker build -t cloud-cost-optimizer .
 docker run -p 8765:8765 cloud-cost-optimizer
 ```
+
+### Docker Compose
+
+```bash
+docker-compose up -d
+# Available at http://localhost:8765
+```
+
+### Deployment Options
+
+| Platform | Command | Free Tier |
+|----------|---------|-----------|
+| Railway | `railway up` | $5 credit/month |
+| Render | Connect GitHub repo | 750h/month free |
+| Docker | See above | Self-host, free |
+| VPS | systemd service | Your server |
+
+See [DEPLOY.md](DEPLOY.md) for detailed guides.
 
 ## How It Works
 
