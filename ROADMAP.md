@@ -11,11 +11,13 @@
 - [x] Deployment guides
 - [x] Documentation
 
-## v1.1 (Next)
+## v1.1 (In Progress)
+- [x] Analysis history — GET /api/history
+- [x] Export recommendations to CSV — GET /api/export-csv
+- [x] Dashboard History UI
 - [ ] API key management
-- [ ] Analysis history with pagination
 - [ ] Usage statistics dashboard
-- [ ] Export recommendations to CSV/Excel
+- [ ] Export recommendations to Excel
 - [ ] Email notifications for savings alerts
 
 ## v1.2
