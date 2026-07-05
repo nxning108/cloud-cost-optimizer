@@ -1,5 +1,16 @@
 # Changelog
 
+## [v1.0.1] - 2026-07-03
+
+### Added
+- Docker Compose support (`docker-compose.yml` for local dev)
+- Docker Build CI workflow (GitHub Actions on tag push)
+- README: real GitHub repo badges, deployment comparison table
+
+### Changed
+- Updated all documentation with actual GitHub repo URL
+- Test suite: 33 tests (was 31)
+
 ## [v1.0.0] - 2026-07-02
 
 ### Added

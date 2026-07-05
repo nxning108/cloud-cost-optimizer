@@ -29,18 +29,18 @@ I was tired of paying $250/month for CloudCheckr when my AWS bill was $200/month
 - **$9/month** Pro tier vs $100-250 for CloudHealth/CloudCheckr
 - **Zero commission** — your savings are 100% yours (vs Spot's 10-15%)
 - **5 minutes** from clone to first analysis
-- **31 passing tests** — not a weekend prototype
+- **33 passing tests** — not a weekend prototype
 
 ### Quick demo
 
 ```bash
-git clone https://github.com/youruser/cloud-cost-optimizer.git
+git clone https://github.com/nxning108/cloud-cost-optimizer.git
 cd cloud-cost-optimizer && pip install -r requirements.txt
 python3 cli/optimizer.py analyze -i billing.csv
 # → report with idle resources and savings recommendations
 ```
 
-Full docs: https://github.com/youruser/cloud-cost-optimizer
+Full docs: https://github.com/nxning108/cloud-cost-optimizer
 
 Would love feedback from anyone who's dealt with cloud cost optimization at scale.
 
@@ -59,8 +59,8 @@ It's a Python CLI + FastAPI that:
 2. Finds idle EC2, unused EBS, sleepy RDS
 3. Tells you what to do (terminate, snapshot+delete, rightsize)
 
-MIT licensed, 31 tests, takes 5 minutes to run your first analysis.
+MIT licensed, 33 tests, takes 5 minutes to run your first analysis.
 
-GitHub: https://github.com/youruser/cloud-cost-optimizer
+GitHub: https://github.com/nxning108/cloud-cost-optimizer
 
 Happy to answer questions about the detection logic or architecture.
