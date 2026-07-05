@@ -23,12 +23,53 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent / "cli"))
 from optimizer import CostAnalyzer
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 app = FastAPI(title="Cloud Cost Optimizer API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"])
+
+
+# ── Rate Limiting ────────────────────────────────────────────────────
+
+# Simple in-memory rate limiter (MVP — use Redis for production)
+_RATE_LIMIT: dict = {}  # ip -> [(timestamp, ...)]
+RATE_LIMIT_MAX = 60  # requests per minute
+RATE_LIMIT_WINDOW = 60  # seconds
+
+
+async def rate_limit_middleware(request: Request, call_next):
+    """Simple in-memory rate limiter per IP."""
+    import time as _time
+    client_ip = request.client.host if request.client else "unknown"
+    now = _time.time()
+
+    # Skip rate limiting for health checks
+    if request.url.path == "/api/health":
+        return await call_next(request)
+
+    # Clean old entries
+    if client_ip in _RATE_LIMIT:
+        _RATE_LIMIT[client_ip] = [
+            t for t in _RATE_LIMIT[client_ip] if now - t < RATE_LIMIT_WINDOW
+        ]
+    else:
+        _RATE_LIMIT[client_ip] = []
+
+    # Check limit
+    if len(_RATE_LIMIT[client_ip]) >= RATE_LIMIT_MAX:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit exceeded. Max 60 requests per minute."},
+        )
+
+    _RATE_LIMIT[client_ip].append(now)
+    response = await call_next(request)
+    return response
+
+
+app.middleware("http")(rate_limit_middleware)
 
 # ── User Authentication ──────────────────────────────────────────────
 

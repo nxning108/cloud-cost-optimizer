@@ -20,10 +20,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "cli"))
 
+import pytest
 from fastapi.testclient import TestClient
-from api.server import app, USERS_DB, TOKENS_DB, USER_ANALYSIS
+from api.server import app, USERS_DB, TOKENS_DB, USER_ANALYSIS, _RATE_LIMIT
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def reset_state():
+    """Reset all in-memory state before each test."""
+    USERS_DB.clear()
+    TOKENS_DB.clear()
+    USER_ANALYSIS.clear()
+    _RATE_LIMIT.clear()
+    yield
 
 
 # ── Helpers ────────────────────────────────────────────────
