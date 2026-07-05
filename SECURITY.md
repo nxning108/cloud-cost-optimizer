@@ -1,7 +1,8 @@
 # Security
 
 ## Reporting Vulnerabilities
-Please report security issues to security@example.com
+Please report security issues via GitHub Security Advisories:
+https://github.com/nxning108/cloud-cost-optimizer/security/advisories/new
 
 ## Security Features
 
