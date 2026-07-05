@@ -25,7 +25,7 @@ from optimizer import CostAnalyzer
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 app = FastAPI(title="Cloud Cost Optimizer API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"])
@@ -279,6 +279,58 @@ async def aws_scan(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/api/export-csv")
+async def export_csv(user: dict = Depends(require_auth)):
+    """Export recommendations as CSV for download."""
+    import csv
+    import io
+    analyses = USER_ANALYSIS.get(user["user_id"], [])
+    if not analyses:
+        raise HTTPException(status_code=404, detail="No analyses to export")
+    result = analyses[-1]
+    if not result.get("recommendations"):
+        raise HTTPException(status_code=404, detail="No recommendations to export")
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Resource ID", "Resource Type", "Action", "Monthly Savings", "Confidence", "Description"])
+    for r in result["recommendations"]:
+        writer.writerow([
+            r["resource_id"],
+            r["resource_type"],
+            r["action"],
+            f"${r['estimated_savings_monthly']:.2f}",
+            r["confidence"],
+            r.get("description", ""),
+        ])
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=cost-optimizer-report.csv"},
+    )
+
+
+@app.get("/api/history")
+async def get_history(user: dict = Depends(require_auth)):
+    """Get full analysis history."""
+    analyses = USER_ANALYSIS.get(user["user_id"], [])
+    return {
+        "count": len(analyses),
+        "analyses": [
+            {
+                "id": i + 1,
+                "generated": a["generated"],
+                "resources": a["resources_analyzed"],
+                "idle": a["idle_resources"],
+                "recommendations": len(a.get("recommendations", [])),
+                "savings": a["total_savings"],
+            }
+            for i, a in enumerate(analyses)
+        ],
+    }
+
+
 @app.get("/api/user")
 async def get_user_info(user: dict = Depends(require_auth)):
     """Get current user info and analysis history."""
@@ -356,6 +408,8 @@ td{padding:12px;border-bottom:1px solid #f0f0f0}tr:hover{background:#f8f9ff}
 <div class="actions">
 <button class="btn" id="ab" onclick="run()" disabled>Analyze Costs</button>
 <button class="btn btn2 hidden" id="db" onclick="dl()">Download Report</button>
+<button class="btn btn2 hidden" id="ecb" onclick="exportCsv()">Export CSV</button>
+<button class="btn hidden" id="hb" onclick="showHistory()">History</button>
 </div>
 <div id="msg"></div>
 </div>
@@ -429,12 +483,14 @@ const fd=new FormData();fd.append('file',f.files[0]);
 try{
 const r=await fetch('/api/analyze',{method:'POST',body:fd});
 const d=await r.json();
-if(r.ok){show('Analysis complete! '+(d.recommendations.length||0)+' opportunities found.','success');showRes(d);$('db').classList.remove('hidden')}
+if(r.ok){show('Analysis complete! '+(d.recommendations.length||0)+' opportunities found.','success');showRes(d);$('db').classList.remove('hidden');$('ecb').classList.remove('hidden');$('hb').classList.remove('hidden');window._lastRes=d}
 else show('Error: '+(d.error||'Analysis failed'),'error');
 }catch(e){show('Network error: '+e.message,'error')}
 ab.disabled=false;ab.textContent='Analyze Costs';
 }
 function show(t,c){msg.className=c;msg.textContent=t}
+function exportCsv(){$('ecb').textContent='Exporting...';fetch('/api/export-csv',{headers:{'Authorization':'Bearer '+window._token}}).then(r=>r.blob()).then(b=>{const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='cost-optimizer-report.csv';a.click();URL.revokeObjectURL(u);$('ecb').textContent='Export CSV'}).catch(()=>{$('ecb').textContent='Export CSV'})}
+function showHistory(){fetch('/api/history',{headers:{'Authorization':'Bearer '+window._token}}).then(r=>r.json()).then(d=>{if(!d.count){show('No analysis history','error');return}let h='<table><tr><th>#</th><th>Date</th><th>Resources</th><th>Idle</th><th>Recs</th><th>Savings</th></tr>';d.analyses.reverse().forEach(a=>{h+=`<tr><td>${a.id}</td><td>${a.generated}</td><td>${a.resources}</td><td>${a.idle}</td><td>${a.recommendations}</td><td>$${a.savings.toFixed(2)}</td></tr>`});h+='</table>';const card=document.createElement('div');card.className='card';card.id='historyCard';card.innerHTML=`<h2>Analysis History (${d.count})</h2>`+h;const pricing=document.querySelector('.pricing-grid')?.closest('.card');if(pricing)pricing.parentNode.insertBefore(card,pricing);else res.parentNode.appendChild(card);show('History loaded','success')}).catch(e=>show('Error: '+e.message,'error'))}
 function showRes(d){
 res.classList.remove('hidden');
 $('mt').innerHTML=`<div class="mc"><div class="mv">${d.resources_analyzed}</div><div class="ml">Resources</div></div>
