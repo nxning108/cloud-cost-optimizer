@@ -352,6 +352,74 @@ async def export_csv(user: dict = Depends(require_auth)):
     )
 
 
+@app.get("/api/export-excel")
+async def export_excel(user: dict = Depends(require_auth)):
+    """Export recommendations as Excel file for download."""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+
+        analyses = USER_ANALYSIS.get(user["user_id"], [])
+        if not analyses:
+            raise HTTPException(status_code=404, detail="No analyses to export")
+        result = analyses[-1]
+        if not result.get("recommendations"):
+            raise HTTPException(status_code=404, detail="No recommendations to export")
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Recommendations"
+
+        # Header styling
+        header_fill = PatternFill(start_color="1a73e8", end_color="1a73e8", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+
+        # Summary sheet
+        ws.cell(row=1, column=1, value="Cloud Cost Optimization Report")
+        ws.cell(row=1, column=1).font = Font(bold=True, size=16)
+        ws.cell(row=2, column=1, value=f"Generated: {result['generated']}")
+        ws.cell(row=3, column=1, value=f"Resources Analyzed: {result['resources_analyzed']}")
+        ws.cell(row=4, column=1, value=f"Idle Resources: {result['idle_resources']}")
+        ws.cell(row=5, column=1, value=f"Total Monthly Savings: ${result['total_savings']:,.2f}")
+
+        # Recommendations sheet
+        ws2 = wb.create_sheet("Recommendations")
+        headers = ["#", "Resource ID", "Type", "Action", "Monthly Savings", "Confidence", "Description"]
+        for col, header in enumerate(headers, 1):
+            cell = ws2.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+
+        for i, rec in enumerate(result["recommendations"], 1):
+            ws2.cell(row=i+1, column=1, value=i)
+            ws2.cell(row=i+1, column=2, value=rec["resource_id"])
+            ws2.cell(row=i+1, column=3, value=rec["resource_type"])
+            ws2.cell(row=i+1, column=4, value=rec["action"])
+            ws2.cell(row=i+1, column=5, value=rec["estimated_savings_monthly"])
+            ws2.cell(row=i+1, column=6, value=rec["confidence"])
+            ws2.cell(row=i+1, column=7, value=rec.get("description", ""))
+
+        # Auto-fit column widths
+        for col in ws2.columns:
+            max_length = max(len(str(cell.value or "")) for cell in col)
+            ws2.column_dimensions[col[0].column_letter].width = min(max_length + 4, 50)
+
+        # Save to BytesIO
+        from io import BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        return Response(
+            content=output.read(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=cost-optimizer-report.xlsx"},
+        )
+    except ImportError:
+        raise HTTPException(status_code=500, detail="openpyxl not installed. Run: pip install openpyxl")
+
+
 @app.get("/api/history")
 async def get_history(user: dict = Depends(require_auth)):
     """Get full analysis history."""

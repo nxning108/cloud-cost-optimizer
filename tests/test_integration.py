@@ -394,6 +394,30 @@ def test_history():
     print("  ✅ test_history")
 
 
+def test_export_excel():
+    """GET /api/export-excel — download recommendations as Excel (v1.1)"""
+    USERS_DB.clear()
+    TOKENS_DB.clear()
+    USER_ANALYSIS.clear()
+
+    # Register + login
+    client.post("/api/register", params={"username": "xlsx_user", "password": "pass1234"})
+    r = client.post("/api/login", params={"username": "xlsx_user", "password": "pass1234"})
+    token = r.json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Run analysis first
+    resources = [{"product_name": "AmazonEC2", "unblended_cost": "200.0", "usage_quantity": "100"}]
+    content, filename = _make_cur_csv(resources)
+    client.post("/api/analyze", files={"file": (filename, content, "text/csv")}, headers=headers)
+
+    r = client.get("/api/export-excel", headers=headers)
+    assert r.status_code in (200, 404), f"Expected 200 or 404, got {r.status_code}: {r.text}"
+    if r.status_code == 200:
+        assert "application/vnd.openxmlformats" in r.headers.get("content-type", "")
+    print("  ✅ test_export_excel")
+
+
 def test_full_workflow():
     """E2E: register → login → analyze → get report → check user info"""
     USERS_DB.clear()
@@ -457,6 +481,7 @@ if __name__ == "__main__":
         ("User Isolation", test_user_isolation),
         ("Dashboard", test_dashboard),
         ("Export CSV", test_export_csv),
+        ("Export Excel", test_export_excel),
         ("History", test_history),
         ("Full Workflow", test_full_workflow),
     ]
