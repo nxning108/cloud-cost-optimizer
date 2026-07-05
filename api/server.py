@@ -291,11 +291,6 @@ async def get_user_info(user: dict = Depends(require_auth)):
     }
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8765)
-
-
 _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -457,3 +452,8 @@ window.location.href='/api/report?format=markdown';
 }
 <\/script>
 </body></html>"""
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8765)

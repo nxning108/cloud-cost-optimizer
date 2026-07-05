@@ -2,11 +2,15 @@
 
 Automated cloud cost analysis and optimization recommendations for AWS, Azure, and GCP.
 
-> 🚀 **MVP v1.0** — CLI + API + Web UI with user authentication and AWS direct billing scan.
+> 🚀 **v1.0** — CLI + API + Web UI with authentication, AWS direct billing scan, and 31 passing tests.
+
+[![Tests](https://github.com/youruser/cloud-cost-optimizer/actions/workflows/test.yml/badge.svg)](.github/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue)](https://python.org)
 
 ## Features
 
-- **User Authentication** — Login/register with Bearer token auth
+- **User Authentication** — Login/register with Bearer token auth, per-user data isolation
 - **Idle Resource Detection** — Identifies underutilized EC2, EBS, RDS, and ELB instances
 - **AWS Direct Billing Scan** — Connect via AWS CLI/boto3 for real-time analysis
 - **AWS CUR Support** — Parse AWS Cost & Usage Report CSV files (.csv and .csv.gz)
@@ -89,31 +93,80 @@ docker run -p 8765:8765 cloud-cost-optimizer
 
 ```
 cloud-cost-optimizer/
-├── api/
-│   └── server.py          # FastAPI server + Web dashboard (with auth)
-├── cli/
-│   ├── optimizer.py       # Core analysis engine
-│   └── aws_cli.py         # AWS direct billing connector
-├── reports/               # Generated reports
-├── tests/
-│   └── test_optimizer.py  # Test suite
-├── Dockerfile             # Containerization
+├── api/                    # FastAPI server + Web dashboard (with auth)
+│   └── server.py
+├── cli/                    # CLI tools
+│   ├── optimizer.py        # Core analysis engine
+│   └── aws_cli.py          # AWS direct billing connector
+├── reports/                # Generated reports
+├── tests/                  # Test suite (31 tests)
+│   ├── test_api.py         # API endpoint tests (3)
+│   ├── test_e2e.py         # End-to-end tests (2)
+│   ├── test_integration.py # Integration tests (17)
+│   ├── test_optimizer.py   # Engine tests (3)
+│   └── test_performance.py # Performance tests (6)
+├── web/                    # Web dashboard
+├── .github/workflows/      # CI/CD
+│   └── test.yml
+├── Dockerfile
 ├── requirements.txt
 └── README.md
 ```
 
+## Pricing
+
+| Tier | Price | AWS Accounts | Analyses | Auto-Fix | Multi-Cloud |
+|------|-------|-------------|----------|----------|-------------|
+| **Free** | $0 | 1 | 3/month | ✗ | ✗ |
+| **Pro** | $9/mo | 5 | Unlimited | ✓ | ✗ |
+| **Team** | $29/mo | Unlimited | Unlimited + Real-time | ✓ | ✓ |
+
+See [PRICING.md](PRICING.md) for detailed feature comparison.
+
+## Competitive Advantage
+
+- **90% cheaper** than CloudHealth ($9 vs $100+/mo)
+- **Zero commission** — savings are 100% yours
+- **Open source** — MIT license, self-hostable
+- **5-minute** first analysis
+- **No hidden fees**
+
+## Testing
+
+```bash
+source .venv/bin/activate
+pytest tests/ -v
+# 31 passed in ~1s
+```
+
 ## Roadmap
 
-- [x] User authentication with session tokens
-- [x] AWS CLI direct billing access
-- [x] Web dashboard with login
-- [x] Docker support
+- [x] v1.0 — Core engine + auth + Web UI + 31 tests
+- [x] AWS direct billing scan
+- [x] Docker + CI/CD
+- [x] Pricing strategy + competitive analysis
 - [ ] Azure billing CSV support
 - [ ] GCP BigQuery billing integration
 - [ ] Multi-account aggregation
 - [ ] Trend analysis (week-over-week cost changes)
 - [ ] Automated remediation (with approval workflow)
 
+## Resources
+
+- [Architecture](ARCHITECTURE.md) — System design and components
+- [API Docs](API.md) — REST API reference
+- [Quick Start](QUICKSTART.md) — 5-minute setup guide
+- [Installation](INSTALL.md) — Detailed install guide
+- [Deployment](DEPLOY.md) — Railway, Render, Heroku, Docker, VPS
+- [Pricing](PRICING.md) — Feature comparison and competitive analysis
+- [Competitor Analysis](COMPETITOR_ANALYSIS.md) — Market positioning
+- [Troubleshooting](TROUBLESHOOTING.md) — Common issues and fixes
+- [Security](SECURITY.md) — Security practices
+- [Contributing](CONTRIBUTING.md) — How to contribute
+- [Changelog](CHANGELOG.md) — Release history
+- [Roadmap](ROADMAP.md) — Future plans
+- [Release Checklist](RELEASE_CHECKLIST.md) — Pre-release verification
+
 ## License
 
-MIT
+MIT — See [LICENSE](LICENSE) for details.
