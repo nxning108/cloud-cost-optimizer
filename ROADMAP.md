@@ -11,20 +11,29 @@
 - [x] Deployment guides
 - [x] Documentation
 
-## v1.1 (In Progress)
+## v1.1 ✅ (Released as v1.1.0)
 - [x] Analysis history — GET /api/history
 - [x] Export recommendations to CSV — GET /api/export-csv
+- [x] Export recommendations to Excel — GET /api/export-excel
 - [x] Dashboard History UI
+- [x] Login/Register UI
+- [x] User bar + Logout
+- [x] Rate limiting (60 req/min)
+- [x] Metrics endpoint (/api/metrics)
+- [x] Sample data (examples/sample-cur.csv)
+- [x] One-command setup (setup.sh)
+- [x] Heroku one-click deploy
+- [x] Docker Compose
+- [x] GitHub security policy + CoC + FUNDING.yml
 - [ ] API key management
 - [ ] Usage statistics dashboard
-- [ ] Export recommendations to Excel
 - [ ] Email notifications for savings alerts
 
 ## v1.2
 - [ ] Azure billing CSV support
 - [ ] GCP BigQuery billing integration
 - [ ] Multi-cloud comparison
-- [ ] Cost trends visualization
+- [x] Cost trends visualization (canvas charts in dashboard)
 
 ## v2.0
 - [ ] Automated remediation (with approval workflow)

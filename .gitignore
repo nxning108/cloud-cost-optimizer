@@ -32,3 +32,18 @@ reports/*.json
 
 # Logs
 *.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# AWS credentials (NEVER commit)
+.aws/credentials
+aws_credentials*
+
+# Docker
+.docker/
+
+# Node
+node_modules/
