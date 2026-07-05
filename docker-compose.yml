@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  optimizer:
+    build: .
+    ports:
+      - "8765:8765"
+    environment:
+      - PORT=8765
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=changeme123
+    volumes:
+      - reports:/app/reports
+    restart: unless-stopped
+
+volumes:
+  reports:
