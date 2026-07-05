@@ -14,14 +14,13 @@ Automated cloud cost analysis and optimization recommendations for AWS, Azure, a
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
-## ⚡ Quick Demo
+## ⚡ Try It Now — No AWS Account Needed
 
 ```bash
-# One-command setup
-curl -Ls https://raw.githubusercontent.com/nxning108/cloud-cost-optimizer/main/setup.sh | bash
-
-# Or Docker
-docker-compose up -d
+git clone https://github.com/nxning108/cloud-cost-optimizer.git && cd cloud-cost-optimizer
+pip install -r requirements.txt
+python3 cli/optimizer.py analyze -i examples/sample-cur.csv
+# → 8 resources analyzed, 5 recommendations, $222.77/month savings!
 ```
 
 ## Features
@@ -138,16 +137,21 @@ cloud-cost-optimizer/
 │   ├── optimizer.py        # Core analysis engine
 │   └── aws_cli.py          # AWS direct billing connector
 ├── reports/                # Generated reports
-├── tests/                  # Test suite (31 tests)
+├── tests/                  # Test suite (33 tests)
 │   ├── test_api.py         # API endpoint tests (3)
 │   ├── test_e2e.py         # End-to-end tests (2)
-│   ├── test_integration.py # Integration tests (17)
+│   ├── test_integration.py # Integration tests (19)
 │   ├── test_optimizer.py   # Engine tests (3)
 │   └── test_performance.py # Performance tests (6)
+├── examples/               # Sample data for instant demo
+│   └── sample-cur.csv
 ├── web/                    # Web dashboard
 ├── .github/workflows/      # CI/CD
-│   └── test.yml
+│   ├── test.yml
+│   └── docker-build.yml
 ├── Dockerfile
+├── docker-compose.yml
+├── setup.sh                # One-command installer
 ├── requirements.txt
 └── README.md
 ```
@@ -175,15 +179,18 @@ See [PRICING.md](PRICING.md) for detailed feature comparison.
 ```bash
 source .venv/bin/activate
 pytest tests/ -v
-# 31 passed in ~1s
+# 33 passed in ~1s
 ```
 
 ## Roadmap
 
-- [x] v1.0 — Core engine + auth + Web UI + 31 tests
+- [x] v1.0 — Core engine + auth + Web UI + 33 tests
+- [x] v1.1 — CSV export, analysis history, sample data
 - [x] AWS direct billing scan
-- [x] Docker + CI/CD
+- [x] Docker + CI/CD + Docker Compose
 - [x] Pricing strategy + competitive analysis
+- [x] One-command setup script
+- [x] Heroku one-click deploy
 - [ ] Azure billing CSV support
 - [ ] GCP BigQuery billing integration
 - [ ] Multi-account aggregation
