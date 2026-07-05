@@ -1,5 +1,29 @@
 # Changelog
 
+## [v1.1.0] - 2026-07-03
+
+### Added
+- **CSV Export** — Download recommendations as CSV (`/api/export-csv`)
+- **Analysis History** — Full analysis history API (`/api/history`)
+- **Sample Data** — `examples/sample-cur.csv` for instant demo without AWS account
+- **Rate Limiting** — 60 req/min per IP, health check exempt
+- **One-Command Setup** — `setup.sh` for automated installation
+- **Heroku Deploy** — One-click deploy button + `app.json`
+- **Docker Compose** — `docker-compose.yml` for local dev
+- **Docker CI** — Automated Docker image build on tag push
+- **GitHub Security Policy** — Vulnerability disclosure via Advisories
+- **GitHub Sponsors** — FUNDING.yml for sponsorship prompts
+- **Code of Conduct** — Contributor Covenant v2
+
+### Changed
+- README: "Try It Now" section, updated architecture tree, deployment matrix
+- Test suite: 33 tests (was 31), auto-cleanup fixture
+- All documentation updated with real GitHub repo URL
+
+### Security
+- Rate limiting middleware (60 req/min)
+- Test state isolation between runs
+
 ## [v1.0.1] - 2026-07-03
 
 ### Added
