@@ -339,6 +339,7 @@ td{padding:12px;border-bottom:1px solid #f0f0f0}tr:hover{background:#f8f9ff}
 .p-features li::before{content:"&#10003; ";color:#34a853;font-weight:700}
 .p-badge{position:absolute;top:-12px;right:16px;background:#f9ab00;color:#fff;padding:3px 12px;border-radius:12px;font-size:.72em;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
 .p-badge.active{background:#34a853}
+#costChart{width:100%;height:300px;background:#f8f9fa;border-radius:8px}
 </style>
 </head>
 <body>
@@ -360,6 +361,10 @@ td{padding:12px;border-bottom:1px solid #f0f0f0}tr:hover{background:#f8f9ff}
 </div>
 <div id="res" class="hidden">
 <div class="metrics" id="mt"></div>
+<div class="card">
+<h2>Cost Trend</h2>
+<canvas id="costChart" style="max-height:300px"></canvas>
+</div>
 <div class="card"><h2>Optimization Recommendations</h2><div id="rc"></div></div>
 </div>
 <div class="card">
@@ -436,6 +441,7 @@ $('mt').innerHTML=`<div class="mc"><div class="mv">${d.resources_analyzed}</div>
 <div class="mc"><div class="mv wn">${d.idle_resources}</div><div class="ml">Idle</div></div>
 <div class="mc"><div class="mv sv">${d.recommendations.length}</div><div class="ml">Recommendations</div></div>
 <div class="mc"><div class="mv sv">$${d.total_savings.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="ml">Monthly Savings</div></div>`;
+drawChart(d.recommendations);
 const rc=$('rc');
 if(!d.recommendations.length){rc.innerHTML='<p style="color:#666">No recommendations. Your resources look optimized!</p>';return}
 let h='<table><tr><th>Resource</th><th>Type</th><th>Action</th><th>Monthly Savings</th><th>Confidence</th></tr>';
@@ -449,6 +455,35 @@ function dl(){
 const d=$('res').classList.contains('hidden');
 if(d){show('No analysis to download','error');return}
 window.location.href='/api/report?format=markdown';
+}
+function drawChart(recs){
+const canvas=$('costChart');
+if(!canvas||!recs.length)return;
+const ctx=canvas.getContext('2d');
+const W=canvas.width=canvas.offsetWidth;
+const H=canvas.height=300;
+ctx.clearRect(0,0,W,H);
+const top=recs.slice(0,8).sort((a,b)=>b.estimated_savings_monthly-a.estimated_savings_monthly);
+if(!top.length)return;
+const maxVal=Math.max(...top.map(r=>r.estimated_savings_monthly));
+const barW=(W-80)/top.length;
+const chartH=H-60;
+ctx.fillStyle='#666';ctx.font='12px sans-serif';
+ctx.fillText('Monthly Savings by Resource',20,20);
+ctx.strokeStyle='#e0e0e0';ctx.beginPath();ctx.moveTo(40,30);ctx.lineTo(40,H-30);ctx.lineTo(W-20,H-30);ctx.stroke();
+top.forEach((r,i)=>{
+const x=50+i*barW;
+const barH=(r.estimated_savings_monthly/maxVal)*chartH;
+const y=H-30-barH;
+const grad=ctx.createLinearGradient(x,y,x,H-30);
+grad.addColorStop(0,'#1a73e8');grad.addColorStop(1,'#34a853');
+ctx.fillStyle=grad;ctx.fillRect(x,y,barW-10,barH);
+ctx.fillStyle='#333';ctx.font='10px sans-serif';
+const label=r.resource_id.length>12?r.resource_id.slice(0,12)+'...':r.resource_id;
+ctx.save();ctx.translate(x+barW/2-5,H-15);ctx.rotate(-0.5);ctx.fillText(label,0,0);ctx.restore();
+ctx.fillStyle='#1a73e8';ctx.font='11px sans-serif';
+ctx.fillText('$'+r.estimated_savings_monthly.toFixed(0),x+5,y-5);
+});
 }
 <\/script>
 </body></html>"""
