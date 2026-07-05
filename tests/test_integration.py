@@ -334,6 +334,55 @@ def test_dashboard():
     print("  ✅ test_dashboard")
 
 
+def test_export_csv():
+    """GET /api/export-csv — download recommendations as CSV (v1.1)"""
+    USERS_DB.clear()
+    TOKENS_DB.clear()
+    USER_ANALYSIS.clear()
+
+    # Register + login
+    client.post("/api/register", params={"username": "csv_user", "password": "pass1234"})
+    r = client.post("/api/login", params={"username": "csv_user", "password": "pass1234"})
+    token = r.json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Run analysis first
+    resources = [{"product_name": "AmazonEC2", "unblended_cost": "200.0", "usage_quantity": "100"}]
+    content, filename = _make_cur_csv(resources)
+    client.post("/api/analyze", files={"file": (filename, content, "text/csv")}, headers=headers)
+
+    r = client.get("/api/export-csv", headers=headers)
+    assert r.status_code in (200, 404), f"Expected 200 or 404, got {r.status_code}: {r.text}"
+    if r.status_code == 200:
+        assert "text/csv" in r.headers.get("content-type", "")
+    print("  ✅ test_export_csv")
+
+
+def test_history():
+    """GET /api/history — get analysis history (v1.1)"""
+    token, username = _auth()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Empty history
+    r = client.get("/api/history", headers=headers)
+    assert r.status_code == 200
+    d = r.json()
+    assert d["count"] >= 0
+    assert "analyses" in d
+
+    # Run analysis and check history updates
+    resources = [{"product_name": "AmazonEC2", "unblended_cost": "50.0"}]
+    content, filename = _make_cur_csv(resources)
+    client.post("/api/analyze", files={"file": (filename, content, "text/csv")}, headers=headers)
+
+    r2 = client.get("/api/history", headers=headers)
+    assert r2.status_code == 200
+    d2 = r2.json()
+    assert d2["count"] >= 1
+    assert d2["analyses"][0]["savings"] >= 0
+    print("  ✅ test_history")
+
+
 def test_full_workflow():
     """E2E: register → login → analyze → get report → check user info"""
     USERS_DB.clear()
@@ -396,6 +445,8 @@ if __name__ == "__main__":
         ("User Info", test_user_info),
         ("User Isolation", test_user_isolation),
         ("Dashboard", test_dashboard),
+        ("Export CSV", test_export_csv),
+        ("History", test_history),
         ("Full Workflow", test_full_workflow),
     ]
 

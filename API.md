@@ -71,6 +71,36 @@ Response:
 }
 ```
 
+### Export CSV (v1.1)
+```bash
+GET /api/export-csv
+Authorization: Bearer <token>
+```
+Downloads recommendations as CSV file with columns:
+`Resource ID, Resource Type, Action, Monthly Savings, Confidence, Description`
+
+### Analysis History (v1.1)
+```bash
+GET /api/history
+Authorization: Bearer <token>
+```
+Response:
+```json
+{
+  "count": 3,
+  "analyses": [
+    {
+      "id": 1,
+      "generated": "2026-07-02T10:00:00",
+      "resources": 120,
+      "idle": 5,
+      "recommendations": 8,
+      "savings": 340.50
+    }
+  ]
+}
+```
+
 ### Health Check
 ```bash
 GET /api/health
