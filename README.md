@@ -9,6 +9,20 @@ Automated cloud cost analysis and optimization recommendations for AWS, Azure, a
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue)](https://python.org)
 [![GitHub tag](https://img.shields.io/github/v/release/nxning108/cloud-cost-optimizer)](https://github.com/nxning108/cloud-cost-optimizer/releases)
+[![GitHub stars](https://img.shields.io/github/stars/nxning108/cloud-cost-optimizer?style=social)](https://github.com/nxning108/cloud-cost-optimizer)
+[![GitHub forks](https://img.shields.io/github/forks/nxning108/cloud-cost-optimizer?style=social)](https://github.com/nxning108/cloud-cost-optimizer/fork)
+
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
+## ⚡ Quick Demo
+
+```bash
+# One-command setup
+curl -Ls https://raw.githubusercontent.com/nxning108/cloud-cost-optimizer/main/setup.sh | bash
+
+# Or Docker
+docker-compose up -d
+```
 
 ## Features
 

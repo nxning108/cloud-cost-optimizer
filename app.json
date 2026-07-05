@@ -1,0 +1,52 @@
+{
+  "name": "Cloud Cost Optimizer",
+  "description": "Open-source cloud cost analysis — find idle AWS resources and save money. CLI + API + Web UI.",
+  "repository": "https://github.com/nxning108/cloud-cost-optimizer",
+  "keywords": ["python", "aws", "cost-optimization", "devops", "finops"],
+  "env": {
+    "PORT": {
+      "description": "Port to run the server on",
+      "value": "8765"
+    },
+    "ADMIN_USERNAME": {
+      "description": "Admin username",
+      "value": "admin"
+    },
+    "ADMIN_PASSWORD": {
+      "description": "Admin password",
+      "generator": "password",
+      "value": ""
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "addons": [],
+  "environments": [
+    {
+      "name": "main",
+      "deployment": {
+        "view": {
+          "invalidate_sessions": false,
+          "redirect_to_static_site": false,
+          "pause_service": true
+        },
+        "health_check": {
+          "max_attempts": 10,
+          "interval": "10s",
+          "timeout": "5s",
+          "type": "none"
+        },
+        "update_delay": 5
+      }
+    }
+  ]
+}
