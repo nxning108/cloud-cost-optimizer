@@ -168,6 +168,20 @@ async def health():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 
+@app.get("/api/metrics")
+async def metrics():
+    """Prometheus-style metrics endpoint (no auth required for monitoring)."""
+    total_users = len(USERS_DB)
+    total_tokens = len(TOKENS_DB)
+    total_analyses = sum(len(v) for v in USER_ANALYSIS.values())
+    return {
+        "users_total": total_users,
+        "active_sessions": total_tokens,
+        "analyses_total": total_analyses,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
 @app.post("/api/register")
 async def register(username: str, password: str):
     """Register a new user."""

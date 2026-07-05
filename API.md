@@ -101,6 +101,29 @@ Response:
 }
 ```
 
+### Export Excel (v1.1)
+```bash
+GET /api/export-excel
+Authorization: Bearer <token>
+```
+Downloads recommendations as formatted .xlsx file with:
+- Summary sheet (resources, idle count, total savings)
+- Recommendations sheet (styled headers, auto-fit columns)
+
+### Metrics (v1.1)
+```bash
+GET /api/metrics
+```
+No auth required. Returns:
+```json
+{
+  "users_total": 5,
+  "active_sessions": 3,
+  "analyses_total": 42,
+  "timestamp": "2026-07-03T12:00:00"
+}
+```
+
 ### Health Check
 ```bash
 GET /api/health
