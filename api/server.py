@@ -520,6 +520,30 @@ td{padding:12px;border-bottom:1px solid #f0f0f0}tr:hover{background:#f8f9ff}
 <body>
 <div class="hdr"><h1>Cloud Cost Optimizer</h1><p>Upload your AWS CUR to identify waste and optimize costs</p></div>
 <div class="cnt">
+<!-- Auth Panel -->
+<div class="card" id="authPanel">
+<h2>🔐 Login / Register</h2>
+<div style="display:flex;gap:20px;flex-wrap:wrap">
+<div style="flex:1;min-width:250px">
+<input type="text" id="authUser" placeholder="Username" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:10px;font-size:1em">
+<input type="password" id="authPass" placeholder="Password" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:10px;font-size:1em">
+<button class="btn" onclick="doLogin()" style="width:100%;margin-bottom:8px">Login</button>
+<button class="btn btn2" onclick="doRegister()" style="width:100%">Register</button>
+<div id="authMsg" style="margin-top:10px"></div>
+</div>
+<div style="flex:1;min-width:250px;background:#f8f9fa;padding:16px;border-radius:8px">
+<h3 style="margin-bottom:8px">Why Login?</h3>
+<ul style="padding-left:20px;line-height:1.8;color:#555">
+<li>Upload and analyze AWS CUR files</li>
+<li>Export recommendations as CSV/Excel</li>
+<li>Track analysis history</li>
+<li>AWS direct billing scan</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Main App (hidden until login) -->
+<div id="mainApp" style="display:none">
 <div class="card">
 <h2>Upload AWS CUR File</h2>
 <div class="ua" id="ua" onclick="document.getElementById('f').click()">
@@ -590,8 +614,14 @@ td{padding:12px;border-bottom:1px solid #f0f0f0}tr:hover{background:#f8f9ff}
 </ol>
 </div>
 </div>
+</div>
+<!-- End mainApp -->
 <script>
 const $=id=>document.getElementById(id);
+// Check for saved token on load
+(function(){const t=localStorage.getItem('cco_token');if(t){window._token=t;$('#authPanel').style.display='none';$('#mainApp').style.display='block'}})();
+function doLogin(){const u=$('authUser').value,p=$('authPass').value,msg=$('authMsg');if(!u||!p){msg.className='error';msg.textContent='Please enter username and password';return}fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}`}).then(r=>r.json()).then(d=>{if(d.token){window._token=d.token;localStorage.setItem('cco_token',d.token);$('#authPanel').style.display='none';$('#mainApp').style.display='block';msg.className='success';msg.textContent='Logged in as '+d.username}else{msg.className='error';msg.textContent=d.detail||'Login failed'}}).catch(e=>{msg.className='error';msg.textContent='Error: '+e.message})}
+function doRegister(){const u=$('authUser').value,p=$('authPass').value,msg=$('authMsg');if(!u||!p){msg.className='error';msg.textContent='Please enter username and password';return}fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}`}).then(r=>r.json()).then(d=>{if(d.user_id){msg.className='success';msg.textContent='Account created! Now click Login'}else{msg.className='error';msg.textContent=d.detail||'Registration failed'}}).catch(e=>{msg.className='error';msg.textContent='Error: '+e.message})}
 const f=$('f'),ab=$('ab'),ua=$('ua'),fn=$('fn'),msg=$('msg'),res=$('res');
 f.addEventListener('change',()=>{if(f.files.length){ab.disabled=false;fn.textContent='Selected: '+f.files[0].name}});
 ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('dragover')});
