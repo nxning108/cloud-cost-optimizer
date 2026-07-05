@@ -2,7 +2,7 @@
 
 Automated cloud cost analysis and optimization recommendations for AWS, Azure, and GCP.
 
-> 🚀 **v1.0** — CLI + API + Web UI with authentication, AWS direct billing scan, and 31 passing tests.
+> 🚀 **v1.1** — CLI + API + Web UI with authentication, CSV export, analysis history, and 33 passing tests.
 
 [![Tests](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/test.yml/badge.svg)](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/test.yml)
 [![Docker Build](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/docker-build.yml/badge.svg)](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/docker-build.yml)
@@ -21,16 +21,21 @@ Automated cloud cost analysis and optimization recommendations for AWS, Azure, a
 
 ## Quick Start
 
+### One-Command Setup
+
 ```bash
-# Install
+curl -Ls https://raw.githubusercontent.com/nxning108/cloud-cost-optimizer/main/setup.sh | bash
+```
+
+### Manual Install
+
+```bash
 git clone https://github.com/nxning108/cloud-cost-optimizer.git
 cd cloud-cost-optimizer
 pip install -r requirements.txt
 
 # Web UI — browse to http://localhost:8765
 python3 api/server.py
-
-# Default admin: admin / admin123
 ```
 
 ## Usage
