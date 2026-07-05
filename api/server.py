@@ -616,12 +616,24 @@ td{padding:12px;border-bottom:1px solid #f0f0f0}tr:hover{background:#f8f9ff}
 </div>
 </div>
 <!-- End mainApp -->
+<!-- User Bar (shown after login) -->
+<div id="userBar" class="card" style="display:none;padding:12px 24px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div>
+<strong id="userName"></strong>
+<span style="color:#666;margin-left:12px;font-size:.9em" id="userStats"></span>
+</div>
+<button class="btn" style="background:#ea4335;padding:8px 16px;font-size:.9em" onclick="doLogout()">Logout</button>
+</div>
+</div>
 <script>
 const $=id=>document.getElementById(id);
 // Check for saved token on load
-(function(){const t=localStorage.getItem('cco_token');if(t){window._token=t;$('#authPanel').style.display='none';$('#mainApp').style.display='block'}})();
-function doLogin(){const u=$('authUser').value,p=$('authPass').value,msg=$('authMsg');if(!u||!p){msg.className='error';msg.textContent='Please enter username and password';return}fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}`}).then(r=>r.json()).then(d=>{if(d.token){window._token=d.token;localStorage.setItem('cco_token',d.token);$('#authPanel').style.display='none';$('#mainApp').style.display='block';msg.className='success';msg.textContent='Logged in as '+d.username}else{msg.className='error';msg.textContent=d.detail||'Login failed'}}).catch(e=>{msg.className='error';msg.textContent='Error: '+e.message})}
+(function(){const t=localStorage.getItem('cco_token');if(t){window._token=t;$('#authPanel').style.display='none';$('#mainApp').style.display='block';loadUserInfo()}})();
+function doLogin(){const u=$('authUser').value,p=$('authPass').value,msg=$('authMsg');if(!u||!p){msg.className='error';msg.textContent='Please enter username and password';return}fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}`}).then(r=>r.json()).then(d=>{if(d.token){window._token=d.token;localStorage.setItem('cco_token',d.token);$('#authPanel').style.display='none';$('#mainApp').style.display='block';loadUserInfo();msg.className='success';msg.textContent='Logged in as '+d.username}else{msg.className='error';msg.textContent=d.detail||'Login failed'}}).catch(e=>{msg.className='error';msg.textContent='Error: '+e.message})}
 function doRegister(){const u=$('authUser').value,p=$('authPass').value,msg=$('authMsg');if(!u||!p){msg.className='error';msg.textContent='Please enter username and password';return}fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}`}).then(r=>r.json()).then(d=>{if(d.user_id){msg.className='success';msg.textContent='Account created! Now click Login'}else{msg.className='error';msg.textContent=d.detail||'Registration failed'}}).catch(e=>{msg.className='error';msg.textContent='Error: '+e.message})}
+function doLogout(){localStorage.removeItem('cco_token');window._token=null;location.reload()}
+function loadUserInfo(){if(!window._token)return;fetch('/api/user',{headers:{'Authorization':'Bearer '+window._token}}).then(r=>r.json()).then(d=>{$('userName').textContent='👤 '+d.username;$('userStats').textContent=d.analyses_count+' analyses';$('userBar').style.display='block'}).catch(()=>{})}
 const f=$('f'),ab=$('ab'),ua=$('ua'),fn=$('fn'),msg=$('msg'),res=$('res');
 f.addEventListener('change',()=>{if(f.files.length){ab.disabled=false;fn.textContent='Selected: '+f.files[0].name}});
 ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('dragover')});
