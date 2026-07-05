@@ -2,7 +2,7 @@
 
 Automated cloud cost analysis and optimization recommendations for AWS, Azure, and GCP.
 
-> 🚀 **v1.1** — CLI + API + Web UI with authentication, CSV export, analysis history, and 33 passing tests.
+> 🚀 **v1.2** — Multi-cloud (AWS + Azure + GCP), CLI + API + Web UI, CSV/Excel export, 34 passing tests.
 
 [![Tests](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/test.yml/badge.svg)](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/test.yml)
 [![Docker Build](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/docker-build.yml/badge.svg)](https://github.com/nxning108/cloud-cost-optimizer/actions/workflows/docker-build.yml)
